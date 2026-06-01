@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["simple-kv"]
+members = ["simple-kv", "simple-shell"]
 
 
 [workspace.dependencies]
