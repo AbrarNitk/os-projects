@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = ["simple-kv"]
+
+
+[workspace.dependencies]
+clap = "4.6.1"
