@@ -28,7 +28,7 @@ pub fn run() {
 
 // command: ls
 // command: ls > output.txt
-
+// command: ls -la | wc -l
 pub fn handle_execute(command: &str) {
     let mut commands = command
         .trim()
@@ -37,7 +37,8 @@ pub fn handle_execute(command: &str) {
         .into_iter()
         .peekable();
 
-    let mut pipes: Vec<Option<OwnedFd>> = vec![];
+    let mut prev_read_end: Option<OwnedFd> = None;
+    let mut children = vec![];
 
     while let Some(command) = commands.next() {
         let is_next_command = commands.peek().is_some();
@@ -51,13 +52,10 @@ pub fn handle_execute(command: &str) {
         };
 
         // read end from previous
-        let read_from_previous = match pipes.pop() {
-            Some(r) => r,
-            None => None,
-        };
+        let read_from_previous = prev_read_end.take();
 
         // push the pipe to the vector for the next command
-        pipes.push(read_end);
+        prev_read_end = read_end;
 
         let (command, redirect) = match command.trim().split_once('>') {
             Some((command, redirect)) => (command, Some(redirect.trim())),
@@ -88,17 +86,15 @@ pub fn handle_execute(command: &str) {
                 libc::exit(0);
             },
             _ => {
-                println!(
-                    "executing command: {command}: read: {}, write: {}",
-                    read_from_previous.is_some(),
-                    write_end.is_some()
-                );
-                execute(command, &args, redirect, read_from_previous, write_end);
+                let child = execute(command, &args, redirect, read_from_previous, write_end);
+                children.push(child);
             }
         };
     }
 
-    // println!("command executed: {}", cmd_line);
+    for child in children {
+        waitpid(child, None).expect("error in waiting the child");
+    }
 }
 
 fn execute(
@@ -107,11 +103,12 @@ fn execute(
     redirect: Option<&str>,
     read_end: Option<OwnedFd>,
     write_end: Option<OwnedFd>,
-) {
+) -> nix::unistd::Pid {
     match unsafe { nix::unistd::fork() } {
         Ok(ForkResult::Parent { child }) => {
             // println!("parent is waiting");
-            waitpid(child, None).unwrap();
+            // waitpid(child, None).unwrap();
+            return child;
         }
         Ok(ForkResult::Child) => {
             let cmd = match CString::from_str(&command) {
@@ -126,7 +123,7 @@ fn execute(
                 close(1).expect(
                     "error in closing the stdout in child, which is inherit from the parent",
                 );
-                let fd = nix::fcntl::open(
+                let _fd = nix::fcntl::open(
                     path,
                     nix::fcntl::OFlag::O_APPEND
                         | nix::fcntl::OFlag::O_CREAT
@@ -138,21 +135,29 @@ fn execute(
                     unsafe { libc::exit(1) };
                 })
                 .into_raw_fd();
-                println!("raw-fd: {:?}", fd);
             };
 
-            if let Some(read) = read_end {
-                unsafe { dup2_raw(stdin(), read).expect("msg") };
-            }
+            let _rfd = if let Some(read) = read_end {
+                let fd = unsafe { dup2_raw(&read, 0).expect("msg").into_raw_fd() };
+                drop(read);
+                Some(fd)
+            } else {
+                None
+            };
 
-            if let Some(write) = write_end {
-                unsafe { dup2_raw(stdout(), write).expect("msg") };
-            }
+            let _fd = if let Some(write) = write_end {
+                let fd = unsafe { dup2_raw(&write, 1).expect("msg").into_raw_fd() };
+                drop(write);
+                Some(fd)
+            } else {
+                None
+            };
 
             // #[warn(irrefutable_let_patterns)]
             if let Err(err) = execvp::<_>(&cmd.clone(), &args) {
                 eprintln!("err-in-executing process: {}", err);
             }
+            unsafe { libc::exit(1) };
         }
         Err(err) => {
             panic!("unable to fork the process: {}", err);
