@@ -2,14 +2,14 @@ use std::{
     env,
     ffi::CString,
     io::{Write, stdin, stdout},
-    os::fd::IntoRawFd,
+    os::fd::{IntoRawFd, OwnedFd},
     str::FromStr,
 };
 
 use nix::{
-    libc,
+    libc::{self},
     sys::wait::waitpid,
-    unistd::{ForkResult, close, execvp},
+    unistd::{ForkResult, close, dup2_raw, execvp},
 };
 
 pub fn run() {
@@ -30,43 +30,84 @@ pub fn run() {
 // command: ls > output.txt
 
 pub fn handle_execute(command: &str) {
-    let (command, redirect) = match command.trim().split_once('>') {
-        Some((command, redirect)) => (command, Some(redirect.trim())),
-        None => (command, None),
-    };
+    let mut commands = command
+        .trim()
+        .split('|')
+        .collect::<Vec<_>>()
+        .into_iter()
+        .peekable();
 
-    let command_parts = command.split_ascii_whitespace().collect::<Vec<_>>();
-    if command_parts.is_empty() {
-        return;
-    }
+    let mut pipes: Vec<Option<OwnedFd>> = vec![];
 
-    let args = command_parts
-        .iter()
-        .map(|string| CString::from_str(string).unwrap_or_else(|_| unsafe { libc::_exit(1) }))
-        .collect::<Vec<_>>();
+    while let Some(command) = commands.next() {
+        let is_next_command = commands.peek().is_some();
 
-    let command = command_parts[0];
+        let (mut read_end, mut write_end) = (None, None);
 
-    match command {
-        "cd" => {
-            let args_it = command_parts.iter();
-            if let Some(path) = args_it.skip(1).next() {
-                let path = std::path::Path::new(path);
-                env::set_current_dir(path).expect("error in setting the path");
+        if is_next_command {
+            let (read, write) = nix::unistd::pipe().expect("error in opening descriptor");
+            read_end = Some(read);
+            write_end = Some(write);
+        };
+
+        // read end from previous
+        let read_from_previous = match pipes.pop() {
+            Some(r) => r,
+            None => None,
+        };
+
+        // push the pipe to the vector for the next command
+        pipes.push(read_end);
+
+        let (command, redirect) = match command.trim().split_once('>') {
+            Some((command, redirect)) => (command, Some(redirect.trim())),
+            None => (command, None),
+        };
+
+        let command_parts = command.split_ascii_whitespace().collect::<Vec<_>>();
+        if command_parts.is_empty() {
+            return;
+        }
+
+        let args = command_parts
+            .iter()
+            .map(|string| CString::from_str(string).unwrap_or_else(|_| unsafe { libc::_exit(1) }))
+            .collect::<Vec<_>>();
+
+        let command = command_parts[0];
+
+        match command {
+            "cd" => {
+                let args_it = command_parts.iter();
+                if let Some(path) = args_it.skip(1).next() {
+                    let path = std::path::Path::new(path);
+                    env::set_current_dir(path).expect("error in setting the path");
+                }
             }
-        }
-        "exit" => unsafe {
-            libc::exit(0);
-        },
-        _ => {
-            execute(command, &args, redirect);
-        }
-    };
+            "exit" => unsafe {
+                libc::exit(0);
+            },
+            _ => {
+                println!(
+                    "executing command: {command}: read: {}, write: {}",
+                    read_from_previous.is_some(),
+                    write_end.is_some()
+                );
+                execute(command, &args, redirect, read_from_previous, write_end);
+            }
+        };
+    }
 
     // println!("command executed: {}", cmd_line);
 }
 
-fn execute(command: &str, args: &[CString], redirect: Option<&str>) {
+fn execute(
+    command: &str,
+    args: &[CString],
+    redirect: Option<&str>,
+    read_end: Option<OwnedFd>,
+    write_end: Option<OwnedFd>,
+) {
     match unsafe { nix::unistd::fork() } {
         Ok(ForkResult::Parent { child }) => {
             // println!("parent is waiting");
@@ -99,6 +140,14 @@ fn execute(command: &str, args: &[CString], redirect: Option<&str>) {
                 .into_raw_fd();
                 println!("raw-fd: {:?}", fd);
             };
+
+            if let Some(read) = read_end {
+                unsafe { dup2_raw(stdin(), read).expect("msg") };
+            }
+
+            if let Some(write) = write_end {
+                unsafe { dup2_raw(stdout(), write).expect("msg") };
+            }
 
             // #[warn(irrefutable_let_patterns)]
             if let Err(err) = execvp::<_>(&cmd.clone(), &args) {
