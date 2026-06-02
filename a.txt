@@ -1,0 +1,16 @@
+raw-fd: 1
+a.txt
+Cargo.lock
+Cargo.toml
+README.md
+simple-kv
+simple-shell
+target
+raw-fd: 1
+a.txt
+Cargo.lock
+Cargo.toml
+README.md
+simple-kv
+simple-shell
+target

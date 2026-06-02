@@ -2,13 +2,14 @@ use std::{
     env,
     ffi::CString,
     io::{Write, stdin, stdout},
+    os::fd::IntoRawFd,
     str::FromStr,
 };
 
 use nix::{
     libc,
     sys::wait::waitpid,
-    unistd::{ForkResult, execvp},
+    unistd::{ForkResult, close, execvp},
 };
 
 pub fn run() {
@@ -25,11 +26,20 @@ pub fn run() {
     }
 }
 
+// command: ls
+// command: ls > output.txt
+
 pub fn handle_execute(command: &str) {
-    let command_parts = command.trim().split_ascii_whitespace().collect::<Vec<_>>();
+    let (command, redirect) = match command.trim().split_once('>') {
+        Some((command, redirect)) => (command, Some(redirect.trim())),
+        None => (command, None),
+    };
+
+    let command_parts = command.split_ascii_whitespace().collect::<Vec<_>>();
     if command_parts.is_empty() {
         return;
     }
+
     let args = command_parts
         .iter()
         .map(|string| CString::from_str(string).unwrap_or_else(|_| unsafe { libc::_exit(1) }))
@@ -49,14 +59,14 @@ pub fn handle_execute(command: &str) {
             libc::exit(0);
         },
         _ => {
-            execute(command, &args);
+            execute(command, &args, redirect);
         }
     };
 
     // println!("command executed: {}", cmd_line);
 }
 
-fn execute(command: &str, args: &[CString]) {
+fn execute(command: &str, args: &[CString], redirect: Option<&str>) {
     match unsafe { nix::unistd::fork() } {
         Ok(ForkResult::Parent { child }) => {
             // println!("parent is waiting");
@@ -68,6 +78,26 @@ fn execute(command: &str, args: &[CString]) {
                 Err(_) => {
                     unsafe { libc::_exit(1) };
                 }
+            };
+
+            // if redirect is present then close the stdout and open the given file path
+            if let Some(path) = redirect {
+                close(1).expect(
+                    "error in closing the stdout in child, which is inherit from the parent",
+                );
+                let fd = nix::fcntl::open(
+                    path,
+                    nix::fcntl::OFlag::O_APPEND
+                        | nix::fcntl::OFlag::O_CREAT
+                        | nix::fcntl::OFlag::O_RDWR,
+                    nix::sys::stat::Mode::S_IRWXU,
+                )
+                .unwrap_or_else(|err| {
+                    eprintln!("error occured while opening redirect fd: {}", err);
+                    unsafe { libc::exit(1) };
+                })
+                .into_raw_fd();
+                println!("raw-fd: {:?}", fd);
             };
 
             // #[warn(irrefutable_let_patterns)]

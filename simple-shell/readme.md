@@ -2,6 +2,8 @@
 
 - [] simple command
 - [] with args
-- [] output redirect
+- [] cd: change directory
+- [] exit: exit the shell process
+- [] output redirects
 - [] handling the pipes(one output becomes another input)
 - [] shell completiions
