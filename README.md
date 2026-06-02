@@ -3,5 +3,6 @@
 ## Projects
 
 - [x] Simple KV
-- [] Simple Shell
+- [x] Simple Shell
+- [] CPU Simulator
 - [] CPU Scheduler Simulation

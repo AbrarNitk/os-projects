@@ -29,6 +29,7 @@ pub fn run() {
 // command: ls
 // command: ls > output.txt
 // command: ls -la | wc -l
+// command: ls -la | wc -l > output.txt
 pub fn handle_execute(command: &str) {
     let mut commands = command
         .trim()
