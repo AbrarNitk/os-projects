@@ -6,7 +6,7 @@
 - [x] Simple Shell
 - [x] ping pong with pipes
   - name pipong, hehe impressive 
-- [] CPU Scheduler Simulation
-  - [] MLFQ Scheduler
+- [x] CPU Scheduler Simulation
+  - [x] MLFQ Scheduler
 - [] CPU Simulator
 - [] Memory Allocatore
