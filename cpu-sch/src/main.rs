@@ -12,8 +12,9 @@ fn main() {
     // create a N number of processes with each having random time to execute
     //
     let processes = process::ProcessTable::seed(1000);
-
     let table = std::sync::Arc::new(processes);
+
+    let total_scheduler_queue = 10;
 
     let (job_sender, job_receiver) = unbounded();
     let (io_job_sender, io_job_receiver) = unbounded();
@@ -21,7 +22,7 @@ fn main() {
     // need to spawn the scheduler by passing the table
     let s_table = table.clone();
     let scheduler_handler = std::thread::spawn(move || {
-        Scheduler::new(s_table, job_sender, io_job_receiver);
+        Scheduler::new(total_scheduler_queue, s_table, job_sender, io_job_receiver);
     });
 
     let e_table = table.clone();
