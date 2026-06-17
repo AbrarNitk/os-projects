@@ -11,7 +11,7 @@ pub mod scheduler;
 fn main() {
     // create a N number of processes with each having random time to execute
     //
-    let processes = process::ProcessTable::seed(1000);
+    let processes = process::ProcessTable::seed(100);
     let table = std::sync::Arc::new(processes);
 
     let total_scheduler_queue = 10;
@@ -27,7 +27,7 @@ fn main() {
 
     let e_table = table.clone();
     let executor_handler = std::thread::spawn(move || {
-        executor::Executor::new(10, e_table, job_receiver, io_job_sender);
+        executor::Executor::new(3, e_table, job_receiver, io_job_sender);
     });
 
     scheduler_handler.join().unwrap();

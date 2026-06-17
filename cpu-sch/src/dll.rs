@@ -8,6 +8,8 @@ pub struct LinkedList<T> {
     pub len: usize,
 }
 
+unsafe impl<T: Send> Send for LinkedList<T> {}
+
 pub struct Node<T> {
     pub data: T,
     pub prev: Link<T>,

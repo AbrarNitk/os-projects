@@ -16,8 +16,8 @@ impl ProcessTable {
     pub fn seed(n: usize) -> Self {
         let mut table = HashMap::new();
 
-        let mut cpu_time_iter = std::iter::repeat_with(|| rand::random_range(100..=1000));
-        let mut io_number_iter = std::iter::repeat_with(|| rand::random_range(0..=100));
+        let mut cpu_time_iter = std::iter::repeat_with(|| rand::random_range(10..=100));
+        let mut io_number_iter = std::iter::repeat_with(|| rand::random_range(0..=10));
 
         let mut pid = 1;
 
