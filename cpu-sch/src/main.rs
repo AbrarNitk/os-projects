@@ -15,17 +15,18 @@ fn main() {
 
     let table = std::sync::Arc::new(processes);
 
-    let (sender, receiver) = unbounded();
+    let (job_sender, job_receiver) = unbounded();
+    let (io_job_sender, io_job_receiver) = unbounded();
 
     // need to spawn the scheduler by passing the table
     let s_table = table.clone();
     let scheduler_handler = std::thread::spawn(move || {
-        Scheduler::new(sender, s_table);
+        Scheduler::new(s_table, job_sender, io_job_receiver);
     });
 
     let e_table = table.clone();
     let executor_handler = std::thread::spawn(move || {
-        executor::Executor::new(10, receiver, e_table);
+        executor::Executor::new(10, e_table, job_receiver, io_job_sender);
     });
 
     scheduler_handler.join().unwrap();

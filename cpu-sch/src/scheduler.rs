@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender};
 
 use crate::{dll::LinkedList, process::ProcessTable};
 
@@ -16,13 +16,14 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    pub fn new(sender: Sender<usize>, table: Arc<ProcessTable>) {
+    pub fn new(table: Arc<ProcessTable>, job_sender: Sender<usize>, io_job_rx: Receiver<usize>) {
         for id in table.0.keys() {
-            sender.send(*id).unwrap();
+            job_sender.send(*id).unwrap();
         }
 
         loop {
-            sender.send(1).unwrap();
+            let pid = io_job_rx.recv().unwrap();
+            job_sender.send(pid).unwrap();
         }
     }
 }
