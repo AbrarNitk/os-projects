@@ -3,9 +3,9 @@
 
 In this project there are going to be process, they do IPC with pipes.
 
+Both the processes talk to each other using the pipes.
 
 ## `pipe`
-
 
 - create a uni and unidirectional pipes so that processes can do the IPC.
 - with first descriptor we can read the data
