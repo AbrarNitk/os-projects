@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["cpu-sch","pipong","simple-kv", "simple-shell"]
+members = ["cpu-sch","pipong","simple-kv", "simple-shell", "small-cpu"]
 
 
 [workspace.dependencies]

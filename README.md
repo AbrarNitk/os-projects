@@ -1,5 +1,8 @@
 # OS Projects
 
+
+All the below projects are implemented in Rust
+
 ## Projects
 
 - [x] Simple KV
@@ -9,4 +12,4 @@
 - [x] CPU Scheduler Simulation
   - [x] MLFQ Scheduler
 - [] CPU Simulator
-- [] Memory Allocatore
+- [] Memory Allocator
