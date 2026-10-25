@@ -4,9 +4,6 @@
 ## Notes
 
 
-
-
-
 ## Refs
 
 - [Understanding glibc malloc](https://sploitfun.wordpress.com/2015/02/10/understanding-glibc-malloc/)
