@@ -26,6 +26,8 @@ pub fn run() {
     }
 }
 
+// Examples
+// it supports the pipes and I/O redirection
 // command: ls
 // command: ls > output.txt
 // command: ls -la | wc -l
@@ -94,7 +96,9 @@ pub fn handle_execute(command: &str) {
     }
 
     for child in children {
+        // when child calls exits, it causes the parent to wakeup
         waitpid(child, None).expect("error in waiting the child");
+        println!("exit from child: {:?}", child);
     }
 }
 

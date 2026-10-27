@@ -8,7 +8,7 @@ members = [
     "simple-shell",
     "small-cpu",
     "parallel-zipper"
-, "signals"]
+, "signals", "sys-calls"]
 
 
 [workspace.dependencies]
